@@ -28,6 +28,8 @@ class SignalRClient:
         self.hub_connection.on("EndLiveStream", self.stop_live_stream)
         self.hub_connection.on("TakeImage", self.capture_image)
 
+        RaspberryPiInterface.hub_connection = self.hub_connection
+
     def on_open(self):
         print("Connection opened")
         self.connected = True

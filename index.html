@@ -1,53 +1,47 @@
-<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Live Video Feed</title>
-    <style>
-        body {
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            height: 100vh;
-            background-color: #f0f0f0;
-        }
-        img {
-            width: 640px;
-            height: 480px;
-            border: 1px solid #ccc;
-        }
-    </style>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/microsoft-signalr/3.1.0/signalr.min.js"></script>
+    <title>Live Video Stream</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/microsoft-signalr/3.1.18/signalr.min.js"></script>
 </head>
 <body>
-    <img id="videoFeed" src="" alt="Video Feed">
+    <h1>Live Video Stream</h1>
+    <img id="videoStream" width="640" height="480" />
+
     <script>
         const connection = new signalR.HubConnectionBuilder()
-            .withUrl("https://localhost:5000/camera?type=flutter")
-            .configureLogging(signalR.LogLevel.Information)
+            .withUrl("https://localhost:5000/Detection?type=flutter")
             .build();
 
-        let receivedChunks = {};
+        let currentFrameChunks = [];
+        let expectedChunks = 0;
 
-        connection.on("ReceiveFrame", (chunk) => {
-            if (!receivedChunks[chunk.messageId]) {
-                receivedChunks[chunk.messageId] = [];
+        connection.on("ReceiveFrame", function (chunk, index, totalChunks) {
+            console.log('Received chunk', index);
+
+            if (index === 0) {
+                // Start of a new frame
+                currentFrameChunks = [];
+                expectedChunks = totalChunks;
             }
 
-            receivedChunks[chunk.messageId][chunk.chunkIndex] = chunk.data;
+            currentFrameChunks[index] = chunk;
 
-            if (receivedChunks[chunk.messageId].length === chunk.totalChunks) {
-                const base64String = receivedChunks[chunk.messageId].join('');
-                const imageUrl = `data:image/jpeg;base64,${base64String}`;
-                document.getElementById("videoFeed").src = imageUrl;
-                delete receivedChunks[chunk.messageId];
+            if (currentFrameChunks.length === expectedChunks && currentFrameChunks.every(c => c !== undefined)) {
+                // All chunks received, assemble the frame
+                const frameBase64 = currentFrameChunks.join('');
+                currentFrameChunks = [];  // reset for next frame
+
+                const img = document.getElementById("videoStream");
+                img.src = 'data:image/jpeg;base64,' + frameBase64;
             }
         });
 
-        connection.start()
-            .then(() => console.log("Connected to SignalR hub"))
-            .catch(err => console.error("Error connecting to SignalR hub: ", err));
+        connection.start().then(function () {
+            console.log("Connected to SignalR hub");
+        }).catch(function (err) {
+            return console.error(err.toString());
+        });
     </script>
 </body>
 </html>
