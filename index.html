@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Live Video Feed</title>
+    <style>
+        body {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            background-color: #f0f0f0;
+        }
+        img {
+            width: 640px;
+            height: 480px;
+            border: 1px solid #ccc;
+        }
+    </style>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/microsoft-signalr/3.1.0/signalr.min.js"></script>
+</head>
+<body>
+    <img id="videoFeed" src="" alt="Video Feed">
+    <script>
+        const connection = new signalR.HubConnectionBuilder()
+            .withUrl("https://localhost:5000/camera?type=flutter")
+            .configureLogging(signalR.LogLevel.Information)
+            .build();
+
+        let receivedChunks = {};
+
+        connection.on("ReceiveFrame", (chunk) => {
+            if (!receivedChunks[chunk.messageId]) {
+                receivedChunks[chunk.messageId] = [];
+            }
+
+            receivedChunks[chunk.messageId][chunk.chunkIndex] = chunk.data;
+
+            if (receivedChunks[chunk.messageId].length === chunk.totalChunks) {
+                const base64String = receivedChunks[chunk.messageId].join('');
+                const imageUrl = `data:image/jpeg;base64,${base64String}`;
+                document.getElementById("videoFeed").src = imageUrl;
+                delete receivedChunks[chunk.messageId];
+            }
+        });
+
+        connection.start()
+            .then(() => console.log("Connected to SignalR hub"))
+            .catch(err => console.error("Error connecting to SignalR hub: ", err));
+    </script>
+</body>
+</html>
