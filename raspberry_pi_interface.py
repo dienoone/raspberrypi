@@ -9,6 +9,7 @@ class RaspberryPiInterface:
     capturing = False
     live_streaming = False
     hub_connection = None
+    url = None
 
     @staticmethod
     def start_capture(interval):
@@ -19,29 +20,7 @@ class RaspberryPiInterface:
     @staticmethod
     def capture_images(interval):
         while RaspberryPiInterface.capturing:
-            camera = cv2.VideoCapture(0)
-            if not camera.isOpened():
-                print("Error: Camera could not be opened")
-                camera.release()
-                return
-
-            time.sleep(2)
-
-            ret, frame = camera.read()
-            if not ret:
-                print("Error: Failed to capture image")
-                camera.release()
-                break
-
-            ret, jpeg = cv2.imencode('.jpg', frame)
-            if not ret:
-                print("Error: Failed to encode image")
-                camera.release()
-                continue
-
-            RaspberryPiInterface.send_file_request(jpeg.tobytes(), "https://localhost:5000/api/file/SendImage?methodName=capture")
-
-            camera.release()
+            RaspberryPiInterface.cap_image("capture") 
             time.sleep(interval)
 
     @staticmethod
@@ -106,11 +85,11 @@ class RaspberryPiInterface:
     def capture_image():
         if RaspberryPiInterface.live_streaming is True :
             RaspberryPiInterface.stop_live_stream()
-            RaspberryPiInterface.cap_image_in_live()
+            RaspberryPiInterface.cap_image("take")
             RaspberryPiInterface.start_live_stream()
         
         else:
-            RaspberryPiInterface.cap_image_in_live()
+            RaspberryPiInterface.cap_image("take")
 
 
     @staticmethod
@@ -138,13 +117,14 @@ class RaspberryPiInterface:
         return frame_base64 
 
     @staticmethod
-    def cap_image_in_live():
+    def cap_image(methodName):
         camera = cv2.VideoCapture(0)
         if not camera.isOpened():
             print("Error: Camera could not be opened")
             return
 
-        time.sleep(2)
+        if methodName == "capture":
+            time.sleep(2)
 
         ret, frame = camera.read()
         if not ret:
@@ -158,6 +138,6 @@ class RaspberryPiInterface:
             camera.release()
             return
 
-        RaspberryPiInterface.send_file_request(jpeg.tobytes(), "https://localhost:5000/api/file/SendImage?methodName=capture")
+        RaspberryPiInterface.send_file_request(jpeg.tobytes(), f"{RaspberryPiInterface.url}?methodName={methodName}")
         camera.release()
         print("Image captured")

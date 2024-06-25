@@ -29,6 +29,7 @@ class SignalRClient:
         self.hub_connection.on("TakeImage", self.capture_image)
 
         RaspberryPiInterface.hub_connection = self.hub_connection
+        RaspberryPiInterface.url = self.url
 
     def on_open(self):
         print("Connection opened")
