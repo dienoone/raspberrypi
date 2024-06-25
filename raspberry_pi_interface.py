@@ -11,7 +11,7 @@ class RaspberryPiInterface:
     def start_capture(interval):
         # Start capturing images
         RaspberryPiInterface.capturing = True
-        RaspberryPiInterface.capture_thread = threading.Thread(target=RaspberryPiInterface.capture_images, args=(interval))
+        RaspberryPiInterface.capture_thread = threading.Thread(target=RaspberryPiInterface.capture_images, args=(interval,))
         RaspberryPiInterface.capture_thread.start()
 
     @staticmethod
