@@ -1,5 +1,8 @@
 # raspberrypi
 
+---
+
 ## Documents Soon
 
-[You can see the video stream by seeing this example](./script.js)
+[Example for live stream using js](./script.js)
+[Server and flutter documentation](https://github.com/dienoone/PlanetHealth/tree/main?tab=readme-ov-file#signalr-client-in-flutter)
