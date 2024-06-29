@@ -10,7 +10,7 @@
 
     <script>
         const connection = new signalR.HubConnectionBuilder()
-            .withUrl("https://localhost:5000/Detection?type=flutter")
+            .withUrl("https://planethealth.azurewebsites.net/detection?type=flutter")
             .build();
 
         let currentFrameChunks = [];

@@ -2,8 +2,8 @@ import asyncio
 from signalr_connection_client import SignalRClient
 
 async def main():
-    hub_url = "https://localhost:5000/detection?type=raspberrypi"
-    url = "https://localhost:5000/api/file/SendImage"
+    hub_url = "https://planethealth.azurewebsites.net/detection?type=raspberrypi"
+    url = "https://planethealth.azurewebsites.net/api/file/SendImage"
 
     # Create and start the SignalR client
     client = SignalRClient(hub_url, url)
