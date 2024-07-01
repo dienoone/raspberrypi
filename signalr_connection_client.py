@@ -1,5 +1,4 @@
 from signalrcore.hub_connection_builder import HubConnectionBuilder
-import logging
 from raspberry_pi_interface import RaspberryPiInterface
 
 class SignalRClient:
@@ -7,11 +6,8 @@ class SignalRClient:
         self.hub_url = hub_url
         self.url = url
         self.connected = False
-        handler = logging.StreamHandler()
-        handler.setLevel(logging.DEBUG)
         self.hub_connection = HubConnectionBuilder() \
-            .with_url(self.hub_url, options={"verify_ssl": False}) \
-            .configure_logging(logging.DEBUG, socket_trace=True, handler=handler) \
+            .with_url(self.hub_url) \
             .with_automatic_reconnect({
                 "type": "raw",
                 "keep_alive_interval": 10,

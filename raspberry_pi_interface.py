@@ -50,7 +50,15 @@ class RaspberryPiInterface:
 
     @staticmethod
     def stream_video():
-        camera = cv2.VideoCapture(0)
+        # Define GStreamer pipeline
+        gst_pipeline = (
+            "libcamerasrc ! "
+            "videoconvert ! "
+            "appsink"
+        )
+
+        # Open the GStreamer pipeline with OpenCV
+        camera = cv2.VideoCapture(gst_pipeline, cv2.CAP_GSTREAMER)
         if not camera.isOpened():
             print("Error: Camera could not be opened")
             return
@@ -95,7 +103,7 @@ class RaspberryPiInterface:
     @staticmethod
     def send_file_request(file_bytes, url):
         files = {'file': ('image.jpg', file_bytes, 'image/jpeg')}
-        response = requests.post(url, files=files, verify=False)
+        response = requests.post(url, files=files)
         if response.status_code == 200:
             print('File uploaded successfully')
             print('Server response:', response.text)
@@ -118,7 +126,15 @@ class RaspberryPiInterface:
 
     @staticmethod
     def cap_image(methodName):
-        camera = cv2.VideoCapture(0)
+        # Define GStreamer pipeline
+        gst_pipeline = (
+            "libcamerasrc ! "
+            "videoconvert ! "
+            "appsink"
+        )
+
+        # Open the GStreamer pipeline with OpenCV
+        camera = cv2.VideoCapture(gst_pipeline, cv2.CAP_GSTREAMER)
         if not camera.isOpened():
             print("Error: Camera could not be opened")
             return
