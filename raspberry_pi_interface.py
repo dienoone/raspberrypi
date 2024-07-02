@@ -41,14 +41,14 @@ class RaspberryPiInterface:
         RaspberryPiInterface.capturing = True
         RaspberryPiInterface.init_camera()
         while RaspberryPiInterface.capturing:
-            RaspberryPiInterface.cap_image("capture")
-            time.sleep(interval)
+            RaspberryPiInterface.cap_image("capture", interval)
         RaspberryPiInterface.release_camera()
 
     @staticmethod
     def stop_capture():
         print("Stopping capture")
         RaspberryPiInterface.capturing = False
+        RaspberryPiInterface.release_camera()
 
     @staticmethod
     def start_live_stream():
@@ -66,6 +66,7 @@ class RaspberryPiInterface:
     def stop_live_stream():
         print("Stopping live stream")
         RaspberryPiInterface.live_streaming = False
+        RaspberryPiInterface.release_camera()
 
     @staticmethod
     def stream_video():
@@ -121,13 +122,13 @@ class RaspberryPiInterface:
         return frame_base64
 
     @staticmethod
-    def cap_image(methodName):
+    def cap_image(methodName, iterval):
         RaspberryPiInterface.init_camera()
         if RaspberryPiInterface.camera is None:
             return
 
         if methodName == "capture":
-            time.sleep(2)
+            time.sleep(iterval)
 
         ret, frame = RaspberryPiInterface.camera.read()
         if not ret:
