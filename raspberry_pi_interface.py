@@ -17,8 +17,10 @@ class RaspberryPiInterface:
         gst_pipeline = (
             "libcamerasrc ! "
             "videoconvert ! "
+            "videobalance ! "
+            "video/x-raw,format=BGR,width=1280,height=720,framerate=10/1 ! "
             "appsink"
-        )
+        ) 
         RaspberryPiInterface.camera = cv2.VideoCapture(gst_pipeline, cv2.CAP_GSTREAMER)
         if not RaspberryPiInterface.camera.isOpened():
             print("Error: Camera could not be opened")
