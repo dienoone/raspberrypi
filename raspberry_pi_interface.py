@@ -45,15 +45,16 @@ class RaspberryPiInterface:
             print("Capture already in progress")
             return
         RaspberryPiInterface.capturing = True
-        RaspberryPiInterface.init_camera()
         RaspberryPiInterface.capture_thread = threading.Thread(target=RaspberryPiInterface.capture_images, args=(interval,))
         RaspberryPiInterface.capture_thread.start()
 
     @staticmethod
     def capture_images(interval):
+        RaspberryPiInterface.init_camera()
         while RaspberryPiInterface.capturing:
             RaspberryPiInterface.cap_image("capture")
             time.sleep(interval)
+        RaspberryPiInterface.release_camera()
 
     @staticmethod
     def stop_capture():
@@ -61,7 +62,6 @@ class RaspberryPiInterface:
         RaspberryPiInterface.capturing = False
         if RaspberryPiInterface.capture_thread is not None:
             RaspberryPiInterface.capture_thread.join()
-        RaspberryPiInterface.release_camera()
 
     @staticmethod
     def start_live_stream():
@@ -70,13 +70,14 @@ class RaspberryPiInterface:
             return
         print("Starting live stream")
         RaspberryPiInterface.live_streaming = True
-        RaspberryPiInterface.init_camera()
         RaspberryPiInterface.live_stream_thread = threading.Thread(target=RaspberryPiInterface.stream_video)
         RaspberryPiInterface.live_stream_thread.start()
 
     @staticmethod
     def stream_video():
+        RaspberryPiInterface.init_camera()
         if RaspberryPiInterface.camera is None:
+            RaspberryPiInterface.live_streaming = False
             return
 
         while RaspberryPiInterface.live_streaming:
@@ -97,6 +98,7 @@ class RaspberryPiInterface:
             time.sleep(0.033)
 
         print("Live stream ended")
+        RaspberryPiInterface.release_camera()
 
     @staticmethod
     def stop_live_stream():
@@ -104,7 +106,6 @@ class RaspberryPiInterface:
         RaspberryPiInterface.live_streaming = False
         if RaspberryPiInterface.live_stream_thread is not None:
             RaspberryPiInterface.live_stream_thread.join()
-        RaspberryPiInterface.release_camera()
 
     @staticmethod
     def capture_image():
