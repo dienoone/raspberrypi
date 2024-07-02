@@ -10,27 +10,30 @@ class RaspberryPiInterface:
     live_streaming = False
     hub_connection = None
     url = None
+    camera_lock = threading.Lock()
 
     @staticmethod
     def init_camera():
-        if RaspberryPiInterface.camera is None:
-            gst_pipeline = (
-                "libcamerasrc ! "
-                "videoconvert ! "
-                "appsink"
-            )
-            RaspberryPiInterface.camera = cv2.VideoCapture(gst_pipeline, cv2.CAP_GSTREAMER)
-            if not RaspberryPiInterface.camera.isOpened():
-                print("Error: Camera could not be opened")
-                RaspberryPiInterface.camera = None
+        with RaspberryPiInterface.camera_lock:
+            if RaspberryPiInterface.camera is None:
+                gst_pipeline = (
+                    "libcamerasrc ! "
+                    "videoconvert ! "
+                    "appsink"
+                )
+                RaspberryPiInterface.camera = cv2.VideoCapture(gst_pipeline, cv2.CAP_GSTREAMER)
+                if not RaspberryPiInterface.camera.isOpened():
+                    print("Error: Camera could not be opened")
+                    RaspberryPiInterface.camera = None
 
     @staticmethod
     def release_camera():
-        if RaspberryPiInterface.camera is not None:
-            RaspberryPiInterface.camera.release()
-            RaspberryPiInterface.camera = None
-            cv2.destroyAllWindows()
-            print("Camera stopped")
+        with RaspberryPiInterface.camera_lock:
+            if RaspberryPiInterface.camera is not None:
+                RaspberryPiInterface.camera.release()
+                RaspberryPiInterface.camera = None
+                cv2.destroyAllWindows()
+                print("Camera stopped")
 
     @staticmethod
     def start_capture(interval):
@@ -69,10 +72,11 @@ class RaspberryPiInterface:
             return
 
         while RaspberryPiInterface.live_streaming:
-            ret, frame = RaspberryPiInterface.camera.read()
-            if not ret:
-                print("Error: Failed to capture frame")
-                break
+            with RaspberryPiInterface.camera_lock:
+                ret, frame = RaspberryPiInterface.camera.read()
+                if not ret:
+                    print("Error: Failed to capture frame")
+                    break
 
             frame_base64 = RaspberryPiInterface.frame_to_base64(frame)
 
@@ -129,24 +133,23 @@ class RaspberryPiInterface:
 
     @staticmethod
     def cap_image(methodName):
+        RaspberryPiInterface.init_camera()
         if RaspberryPiInterface.camera is None:
-            RaspberryPiInterface.init_camera()
-            if RaspberryPiInterface.camera is None:
-                return
+            return
 
         if methodName == "capture":
             time.sleep(2)
 
-        ret, frame = RaspberryPiInterface.camera.read()
-        if not ret:
-            print("Error: Failed to capture image")
-            return
+        with RaspberryPiInterface.camera_lock:
+            ret, frame = RaspberryPiInterface.camera.read()
+            if not ret:
+                print("Error: Failed to capture image")
+                return
 
-        ret, jpeg = cv2.imencode('.jpg', frame)
-        if not ret:
-            print("Error: Failed to encode image")
-            return
+            ret, jpeg = cv2.imencode('.jpg', frame)
+            if not ret:
+                print("Error: Failed to encode image")
+                return
 
         RaspberryPiInterface.send_file_request(jpeg.tobytes(), f"{RaspberryPiInterface.url}?methodName={methodName}")
         print("Image captured")
-
