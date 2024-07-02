@@ -41,7 +41,7 @@ class RaspberryPiInterface:
         RaspberryPiInterface.capturing = True
         RaspberryPiInterface.init_camera()
         while RaspberryPiInterface.capturing:
-            RaspberryPiInterface.cap_image("capture", interval)
+            RaspberryPiInterface.cap_image("capture")
         RaspberryPiInterface.release_camera()
 
     @staticmethod
@@ -80,7 +80,7 @@ class RaspberryPiInterface:
 
         frame_base64 = RaspberryPiInterface.frame_to_base64(frame)
 
-        chunk_size = 8192
+        chunk_size = 8192 
         total_chunks = len(frame_base64) // chunk_size + 1
         for i in range(0, len(frame_base64), chunk_size):
             chunk = frame_base64[i:i + chunk_size]
@@ -103,14 +103,14 @@ class RaspberryPiInterface:
         response = requests.post(url, files=files)
         if response.status_code == 200:
             print('File uploaded successfully')
-            print('Server response:', response.text)
         else:
             print(f"File upload failed with status code {response.status_code}")
-            print('Server response:', response.text)
 
     @staticmethod
     def send_video_chunk(chunk, i, chunk_size, total_chunks):
+        print('2')
         if RaspberryPiInterface.hub_connection:
+            print('3')
             RaspberryPiInterface.hub_connection.send("UploadLiveStream", [chunk, i // chunk_size, total_chunks])
         else:
             print("Error: Hub connection is not established")
@@ -122,13 +122,13 @@ class RaspberryPiInterface:
         return frame_base64
 
     @staticmethod
-    def cap_image(methodName, iterval):
+    def cap_image(methodName):
         RaspberryPiInterface.init_camera()
         if RaspberryPiInterface.camera is None:
             return
 
         if methodName == "capture":
-            time.sleep(iterval)
+            time.sleep(2)
 
         ret, frame = RaspberryPiInterface.camera.read()
         if not ret:

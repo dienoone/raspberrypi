@@ -4,7 +4,7 @@ import time
 import threading
 import requests
 
-class RaspberryPiInterface:
+class RaspberryPiInterfaceCopy:
     camera = None
     capturing = False
     live_streaming = False
@@ -89,13 +89,13 @@ class RaspberryPiInterface:
 
             frame_base64 = RaspberryPiInterface.frame_to_base64(frame)
 
-            chunk_size = 8192
+            chunk_size = 8192 / 2
             total_chunks = len(frame_base64) // chunk_size + 1
             for i in range(0, len(frame_base64), chunk_size):
                 chunk = frame_base64[i:i + chunk_size]
                 RaspberryPiInterface.send_video_chunk(chunk, i, chunk_size, total_chunks)
 
-            time.sleep(0.033)
+            time.sleep(0.0033)
 
         print("Live stream ended")
         RaspberryPiInterface.release_camera()
