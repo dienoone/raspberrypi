@@ -10,6 +10,29 @@ class RaspberryPiInterface:
     live_streaming = False
     hub_connection = None
     url = None
+    camera = None
+
+    @staticmethod
+    def initialize_camera():
+        gst_pipeline = (
+            "libcamerasrc ! "
+            "videoconvert ! "
+            "appsink"
+        )
+        RaspberryPiInterface.camera = cv2.VideoCapture(gst_pipeline, cv2.CAP_GSTREAMER)
+        if not RaspberryPiInterface.camera.isOpened():
+            print("Error: Camera could not be opened")
+            RaspberryPiInterface.camera = None
+        else:
+            print("Camera initialized")
+
+    @staticmethod
+    def release_camera():
+        if RaspberryPiInterface.camera:
+            RaspberryPiInterface.camera.release()
+            RaspberryPiInterface.camera = None
+            cv2.destroyAllWindows()
+            print("Camera released")
 
     @staticmethod
     def start_capture(interval):
@@ -31,15 +54,6 @@ class RaspberryPiInterface:
             RaspberryPiInterface.capture_thread.join()
 
     @staticmethod
-    def stop_camera():
-        with RaspberryPiInterface.camera_lock:
-            if RaspberryPiInterface.camera is not None:
-                RaspberryPiInterface.camera.release()
-                RaspberryPiInterface.camera = None
-                cv2.destroyAllWindows()
-                print("Camera stopped")
-
-    @staticmethod
     def start_live_stream():
         if RaspberryPiInterface.live_streaming:
             print("Live stream already in progress")
@@ -51,22 +65,11 @@ class RaspberryPiInterface:
 
     @staticmethod
     def stream_video():
-        # Define GStreamer pipeline
-        gst_pipeline = (
-            "libcamerasrc ! "
-            "videoconvert ! "
-            "appsink"
-        )
-
-        with RaspberryPiInterface.camera_lock:
-            camera = cv2.VideoCapture(gst_pipeline, cv2.CAP_GSTREAMER)
-            if not camera.isOpened():
-                print("Error: Camera could not be opened")
-                return
-
         while RaspberryPiInterface.live_streaming:
             with RaspberryPiInterface.camera_lock:
-                ret, frame = camera.read()
+                if RaspberryPiInterface.camera is None:
+                    RaspberryPiInterface.initialize_camera()
+                ret, frame = RaspberryPiInterface.camera.read()
                 if not ret:
                     print("Error: Failed to capture frame")
                     break
@@ -80,8 +83,6 @@ class RaspberryPiInterface:
 
             time.sleep(0.0033)
 
-        with RaspberryPiInterface.camera_lock:
-            camera.release()
         print("Live stream ended")
 
     @staticmethod
@@ -126,34 +127,18 @@ class RaspberryPiInterface:
 
     @staticmethod
     def cap_image(methodName):
-        # Define GStreamer pipeline
-        gst_pipeline = (
-            "libcamerasrc ! "
-            "videoconvert ! "
-            "appsink"
-        )
-
         with RaspberryPiInterface.camera_lock:
-            camera = cv2.VideoCapture(gst_pipeline, cv2.CAP_GSTREAMER)
-            if not camera.isOpened():
-                print("Error: Camera could not be opened")
-                return
-
-            if methodName == "capture":
-                time.sleep(2)
-
-            ret, frame = camera.read()
+            if RaspberryPiInterface.camera is None:
+                RaspberryPiInterface.initialize_camera()
+            ret, frame = RaspberryPiInterface.camera.read()
             if not ret:
                 print("Error: Failed to capture image")
-                camera.release()
                 return
 
             ret, jpeg = cv2.imencode('.jpg', frame)
             if not ret:
                 print("Error: Failed to encode image")
-                camera.release()
                 return
 
             RaspberryPiInterface.send_file_request(jpeg.tobytes(), f"{RaspberryPiInterface.url}?methodName={methodName}")
-            camera.release()
         print("Image captured")
