@@ -54,6 +54,7 @@ class RaspberryPiInterface:
         RaspberryPiInterface.capturing = False
         if RaspberryPiInterface.capture_thread is not None:
             RaspberryPiInterface.capture_thread.join()
+        RaspberryPiInterface.release_camera()
 
     @staticmethod
     def start_live_stream():
