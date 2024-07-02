@@ -11,6 +11,8 @@ class RaspberryPiInterface:
     hub_connection = None
     url = None
     camera_lock = threading.Lock()
+    capture_thread = None
+    live_stream_thread = None
 
     @staticmethod
     def init_camera():
@@ -25,6 +27,8 @@ class RaspberryPiInterface:
                 if not RaspberryPiInterface.camera.isOpened():
                     print("Error: Camera could not be opened")
                     RaspberryPiInterface.camera = None
+                else:
+                    print("Camera initialized")
 
     @staticmethod
     def release_camera():
@@ -37,6 +41,9 @@ class RaspberryPiInterface:
 
     @staticmethod
     def start_capture(interval):
+        if RaspberryPiInterface.capturing:
+            print("Capture already in progress")
+            return
         RaspberryPiInterface.capturing = True
         RaspberryPiInterface.init_camera()
         RaspberryPiInterface.capture_thread = threading.Thread(target=RaspberryPiInterface.capture_images, args=(interval,))
