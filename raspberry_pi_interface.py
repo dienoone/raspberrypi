@@ -5,7 +5,7 @@ import threading
 import requests
 
 class RaspberryPiInterface:
-    camera = None
+    camera_lock = threading.Lock()
     capturing = False
     live_streaming = False
     hub_connection = None
@@ -20,7 +20,7 @@ class RaspberryPiInterface:
     @staticmethod
     def capture_images(interval):
         while RaspberryPiInterface.capturing:
-            RaspberryPiInterface.cap_image("capture") 
+            RaspberryPiInterface.cap_image("capture")
             time.sleep(interval)
 
     @staticmethod
@@ -32,11 +32,12 @@ class RaspberryPiInterface:
 
     @staticmethod
     def stop_camera():
-        if RaspberryPiInterface.camera is not None:
-            RaspberryPiInterface.camera.release()
-            RaspberryPiInterface.camera = None
-            cv2.destroyAllWindows()
-            print("Camera stopped")
+        with RaspberryPiInterface.camera_lock:
+            if RaspberryPiInterface.camera is not None:
+                RaspberryPiInterface.camera.release()
+                RaspberryPiInterface.camera = None
+                cv2.destroyAllWindows()
+                print("Camera stopped")
 
     @staticmethod
     def start_live_stream():
@@ -57,20 +58,20 @@ class RaspberryPiInterface:
             "appsink"
         )
 
-        # Open the GStreamer pipeline with OpenCV
-        camera = cv2.VideoCapture(gst_pipeline, cv2.CAP_GSTREAMER)
-        if not camera.isOpened():
-            print("Error: Camera could not be opened")
-            return
+        with RaspberryPiInterface.camera_lock:
+            camera = cv2.VideoCapture(gst_pipeline, cv2.CAP_GSTREAMER)
+            if not camera.isOpened():
+                print("Error: Camera could not be opened")
+                return
 
         while RaspberryPiInterface.live_streaming:
-            ret, frame = camera.read()
-            if not ret:
-                print("Error: Failed to capture frame")
-                break
+            with RaspberryPiInterface.camera_lock:
+                ret, frame = camera.read()
+                if not ret:
+                    print("Error: Failed to capture frame")
+                    break
 
             frame_base64 = RaspberryPiInterface.frame_to_base64(frame)
-
             chunk_size = 8192
             total_chunks = len(frame_base64) // chunk_size + 1
             for i in range(0, len(frame_base64), chunk_size):
@@ -79,26 +80,25 @@ class RaspberryPiInterface:
 
             time.sleep(0.0033)
 
-        camera.release()
+        with RaspberryPiInterface.camera_lock:
+            camera.release()
         print("Live stream ended")
 
     @staticmethod
     def stop_live_stream():
         print("Stopping live stream")
-        RaspberryPiInterface.live_streaming = False 
+        RaspberryPiInterface.live_streaming = False
         if RaspberryPiInterface.live_stream_thread is not None:
             RaspberryPiInterface.live_stream_thread.join()
 
     @staticmethod
     def capture_image():
-        if RaspberryPiInterface.live_streaming is True :
+        if RaspberryPiInterface.live_streaming:
             RaspberryPiInterface.stop_live_stream()
             RaspberryPiInterface.cap_image("take")
             RaspberryPiInterface.start_live_stream()
-        
         else:
             RaspberryPiInterface.cap_image("take")
-
 
     @staticmethod
     def send_file_request(file_bytes, url):
@@ -109,12 +109,12 @@ class RaspberryPiInterface:
             print('Server response:', response.text)
         else:
             print(f"File upload failed with status code {response.status_code}")
-            print('Server response:', response.text) 
-    
+            print('Server response:', response.text)
+
     @staticmethod
     def send_video_chunk(chunk, i, chunk_size, total_chunks):
         if RaspberryPiInterface.hub_connection:
-            RaspberryPiInterface.hub_connection.send("UploadLiveStream", [chunk, i // chunk_size, total_chunks]) 
+            RaspberryPiInterface.hub_connection.send("UploadLiveStream", [chunk, i // chunk_size, total_chunks])
         else:
             print("Error: Hub connection is not established")
 
@@ -122,7 +122,7 @@ class RaspberryPiInterface:
     def frame_to_base64(frame):
         _, buffer = cv2.imencode('.jpg', frame)
         frame_base64 = base64.b64encode(buffer).decode('utf-8')
-        return frame_base64 
+        return frame_base64
 
     @staticmethod
     def cap_image(methodName):
@@ -133,27 +133,27 @@ class RaspberryPiInterface:
             "appsink"
         )
 
-        # Open the GStreamer pipeline with OpenCV
-        camera = cv2.VideoCapture(gst_pipeline, cv2.CAP_GSTREAMER)
-        if not camera.isOpened():
-            print("Error: Camera could not be opened")
-            return
+        with RaspberryPiInterface.camera_lock:
+            camera = cv2.VideoCapture(gst_pipeline, cv2.CAP_GSTREAMER)
+            if not camera.isOpened():
+                print("Error: Camera could not be opened")
+                return
 
-        if methodName == "capture":
-            time.sleep(2)
+            if methodName == "capture":
+                time.sleep(2)
 
-        ret, frame = camera.read()
-        if not ret:
-            print("Error: Failed to capture image")
+            ret, frame = camera.read()
+            if not ret:
+                print("Error: Failed to capture image")
+                camera.release()
+                return
+
+            ret, jpeg = cv2.imencode('.jpg', frame)
+            if not ret:
+                print("Error: Failed to encode image")
+                camera.release()
+                return
+
+            RaspberryPiInterface.send_file_request(jpeg.tobytes(), f"{RaspberryPiInterface.url}?methodName={methodName}")
             camera.release()
-            return
-
-        ret, jpeg = cv2.imencode('.jpg', frame)
-        if not ret:
-            print("Error: Failed to encode image")
-            camera.release()
-            return
-
-        RaspberryPiInterface.send_file_request(jpeg.tobytes(), f"{RaspberryPiInterface.url}?methodName={methodName}")
-        camera.release()
         print("Image captured")
