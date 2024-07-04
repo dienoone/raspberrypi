@@ -1,9 +1,8 @@
 import base64
+import cv2
 import time
 import threading
 import requests
-from picamera2 import Picamera2
-import cv2
 
 class RaspberryPiInterface:
     camera = None
@@ -13,32 +12,15 @@ class RaspberryPiInterface:
     url = None
 
     @staticmethod
-    def init_camera():
-        if RaspberryPiInterface.camera is None:
-            RaspberryPiInterface.camera = Picamera2()
-            RaspberryPiInterface.camera.configure(RaspberryPiInterface.camera.create_preview_configuration())
-            RaspberryPiInterface.camera.start()
-            time.sleep(2)  # Give the camera time to warm up
-
-    @staticmethod
-    def release_camera():
-        if RaspberryPiInterface.camera is not None:
-            RaspberryPiInterface.camera.stop()
-            RaspberryPiInterface.camera = None
-            cv2.destroyAllWindows()
-            print("Camera stopped")
-
-    @staticmethod
     def start_capture(interval):
         RaspberryPiInterface.capturing = True
-        RaspberryPiInterface.init_camera()
         RaspberryPiInterface.capture_thread = threading.Thread(target=RaspberryPiInterface.capture_images, args=(interval,))
         RaspberryPiInterface.capture_thread.start()
 
     @staticmethod
     def capture_images(interval):
         while RaspberryPiInterface.capturing:
-            RaspberryPiInterface.cap_image("capture")
+            RaspberryPiInterface.cap_image("capture") 
             time.sleep(interval)
 
     @staticmethod
@@ -49,23 +31,36 @@ class RaspberryPiInterface:
             RaspberryPiInterface.capture_thread.join()
 
     @staticmethod
+    def stop_camera():
+        if RaspberryPiInterface.camera is not None:
+            RaspberryPiInterface.camera.release()
+            RaspberryPiInterface.camera = None
+            cv2.destroyAllWindows()
+            print("Camera stopped")
+
+    @staticmethod
     def start_live_stream():
         if RaspberryPiInterface.live_streaming:
             print("Live stream already in progress")
             return
         print("Starting live stream")
         RaspberryPiInterface.live_streaming = True
-        RaspberryPiInterface.init_camera()
         RaspberryPiInterface.live_stream_thread = threading.Thread(target=RaspberryPiInterface.stream_video)
         RaspberryPiInterface.live_stream_thread.start()
 
     @staticmethod
     def stream_video():
-        if RaspberryPiInterface.camera is None:
+        camera = cv2.VideoCapture(0)
+        if not camera.isOpened():
+            print("Error: Camera could not be opened")
             return
 
         while RaspberryPiInterface.live_streaming:
-            frame = RaspberryPiInterface.camera.capture_array()
+            ret, frame = camera.read()
+            if not ret:
+                print("Error: Failed to capture frame")
+                break
+
             frame_base64 = RaspberryPiInterface.frame_to_base64(frame)
 
             chunk_size = 8192
@@ -74,26 +69,28 @@ class RaspberryPiInterface:
                 chunk = frame_base64[i:i + chunk_size]
                 RaspberryPiInterface.send_video_chunk(chunk, i, chunk_size, total_chunks)
 
-            time.sleep(0.033)
+            time.sleep(0.0033)
 
+        camera.release()
         print("Live stream ended")
 
     @staticmethod
     def stop_live_stream():
         print("Stopping live stream")
-        RaspberryPiInterface.live_streaming = False
+        RaspberryPiInterface.live_streaming = False 
         if RaspberryPiInterface.live_stream_thread is not None:
             RaspberryPiInterface.live_stream_thread.join()
-        RaspberryPiInterface.release_camera()
 
     @staticmethod
     def capture_image():
-        if RaspberryPiInterface.live_streaming:
+        if RaspberryPiInterface.live_streaming is True :
             RaspberryPiInterface.stop_live_stream()
             RaspberryPiInterface.cap_image("take")
             RaspberryPiInterface.start_live_stream()
+        
         else:
             RaspberryPiInterface.cap_image("take")
+
 
     @staticmethod
     def send_file_request(file_bytes, url):
@@ -104,12 +101,12 @@ class RaspberryPiInterface:
             print('Server response:', response.text)
         else:
             print(f"File upload failed with status code {response.status_code}")
-            print('Server response:', response.text)
-
+            print('Server response:', response.text) 
+    
     @staticmethod
     def send_video_chunk(chunk, i, chunk_size, total_chunks):
         if RaspberryPiInterface.hub_connection:
-            RaspberryPiInterface.hub_connection.send("UploadLiveStream", [chunk, i // chunk_size, total_chunks])
+            RaspberryPiInterface.hub_connection.send("UploadLiveStream", [chunk, i // chunk_size, total_chunks]) 
         else:
             print("Error: Hub connection is not established")
 
@@ -117,24 +114,27 @@ class RaspberryPiInterface:
     def frame_to_base64(frame):
         _, buffer = cv2.imencode('.jpg', frame)
         frame_base64 = base64.b64encode(buffer).decode('utf-8')
-        return frame_base64
+        return frame_base64 
 
     @staticmethod
     def cap_image(methodName):
-        if RaspberryPiInterface.camera is None:
-            RaspberryPiInterface.init_camera()
-            if RaspberryPiInterface.camera is None:
-                return
+        camera = cv2.VideoCapture(0)
+        if not camera.isOpened():
+            print("Error: Camera could not be opened")
+            return
 
-        if methodName == "capture":
-            time.sleep(2)
-
-        frame = RaspberryPiInterface.camera.capture_array()
+        ret, frame = camera.read()
+        if not ret:
+            print("Error: Failed to capture image")
+            camera.release()
+            return
 
         ret, jpeg = cv2.imencode('.jpg', frame)
         if not ret:
             print("Error: Failed to encode image")
+            camera.release()
             return
 
         RaspberryPiInterface.send_file_request(jpeg.tobytes(), f"{RaspberryPiInterface.url}?methodName={methodName}")
+        camera.release()
         print("Image captured")
